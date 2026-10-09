@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+:root {
+  color: #d1d5db;
+  background: #0b0f14;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: #0b0f14;
+}
+
+button {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(1100px, calc(100% - 20px));
+  margin: 0 auto;
+  padding: 20px 0;
+}
+
+.app-header {
+  margin-bottom: 12px;
+}
+
+.track-list {
+  display: grid;
+  gap: 8px;
+}
+
+.track-card {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #1f2937;
+  background: #111827;
+}
+
+.track-card h2 {
+  margin: 0 0 6px;
+  color: #9ca3af;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.play-button,
+.icon-button {
+  border: 1px solid #374151;
+  color: #d1d5db;
+  background: #1f2937;
+  cursor: pointer;
+}
+
+.play-button {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+}
+
+.play-button:hover,
+.icon-button:hover {
+  border-color: #60a5fa;
+  background: #263449;
+}
+
+.play-button__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+}
+
+.piano-roll {
+  min-width: 0;
+}
+
+.piano-roll__viewport {
+  height: 180px;
+  overflow-x: auto;
+  overflow-y: auto;
+  border: 1px solid #1f2937;
+  background: #0f172a;
+  scrollbar-color: #374151 #0f172a;
+}
+
+.piano-roll__viewport svg {
+  display: block;
+  min-width: 804px;
+}
