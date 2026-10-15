@@ -31,19 +31,19 @@ const App = () => {
       <div className="track-list">
         <section className="track-card">
           <h2>Drums</h2>
-          <PianoRoll track={loop.drums} position={playback.position} onChange={editTrack('drums')} />
+          <PianoRoll trackName="drums" track={loop.drums} position={playback.position} onChange={editTrack('drums')} />
         </section>
         <section className="track-card">
           <h2>Bass</h2>
-          <PianoRoll track={loop.bass} position={playback.position} onChange={editTrack('bass')} />
+          <PianoRoll trackName="bass" track={loop.bass} position={playback.position} onChange={editTrack('bass')} />
         </section>
         <section className="track-card">
           <h2>Synth Low</h2>
-          <PianoRoll track={loop.synth_low} position={playback.position} onChange={editTrack('synth_low')} />
+          <PianoRoll trackName="synth_low" track={loop.synth_low} position={playback.position} onChange={editTrack('synth_low')} />
         </section>
         <section className="track-card">
           <h2>Synth High</h2>
-          <PianoRoll track={loop.synth_high} position={playback.position} onChange={editTrack('synth_high')} />
+          <PianoRoll trackName="synth_high" track={loop.synth_high} position={playback.position} onChange={editTrack('synth_high')} />
         </section>
       </div>
     </main>

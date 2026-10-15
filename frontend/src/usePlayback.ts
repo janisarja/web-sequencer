@@ -12,21 +12,30 @@ type Playback = {
 
 const BPM = 120;
 
+const createInstruments = (): Record<Track, Tone.PolySynth<Tone.FMSynth>> => ({
+  drums: new Tone.PolySynth(Tone.FMSynth).toDestination(),
+  bass: new Tone.PolySynth(Tone.FMSynth).toDestination(),
+  synth_low: new Tone.PolySynth(Tone.FMSynth).toDestination(),
+  synth_high: new Tone.PolySynth(Tone.FMSynth).toDestination(),
+});
+
 const usePlayback = (loop: Loop): Playback => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const sounds = useRef<Tone.Loop[]>([]);
-  const synth = useRef<Tone.FMSynth | null>(null);
+  const instruments = useRef<Record<Track, Tone.PolySynth<Tone.FMSynth>> | null>(null);
 
-  const addToPlayback = useCallback((sound: Sound) => {
-    const currentSynth = synth.current;
-    if (!currentSynth) return;
+  const addToPlayback = useCallback((track: Track, sound: Sound) => {
+    const trackInstrument = instruments.current?.[track];
+    if (!trackInstrument) {
+      return;
+    }
 
     const duration = `0:${Math.floor(sound.duration / 2)}:${sound.duration % 2 ? 2 : 0}`;
     const start = `${Math.floor(sound.start / 8)}:${Math.floor((sound.start % 8) / 2)}:${sound.start % 2 ? 2 : 0}`;
 
     const soundLoop = new Tone.Loop((time) => {
-      currentSynth.triggerAttackRelease(sound.note, duration, time);
+      trackInstrument.triggerAttackRelease(sound.note, duration, time);
       console.log(`Playing ${sound.note} at ${time}`);
     }, '4m');
 
@@ -61,18 +70,22 @@ const usePlayback = (loop: Loop): Playback => {
     return () => {
       clearPlayback();
       Tone.getTransport().stop();
-      synth.current?.dispose();
-      synth.current = null;
+      instruments.current?.drums.dispose();
+      instruments.current?.bass.dispose();
+      instruments.current?.synth_low.dispose();
+      instruments.current?.synth_high.dispose();
+      instruments.current = null;
     };
   }, [clearPlayback]);
 
   const updatePlayback = useCallback(() => {
     console.log('Updating playback with loop:', loop);
     clearPlayback();
+    instruments.current ??= createInstruments();
 
     for (const track of Object.keys(loop) as Track[]) {
       for (const sound of loop[track]) {
-        addToPlayback(sound);
+        addToPlayback(track, sound);
       }
     }
 
@@ -88,7 +101,6 @@ const usePlayback = (loop: Loop): Playback => {
 
   const startPlayback = async () => {
     await Tone.start();
-    synth.current ??= new Tone.FMSynth().toDestination();
     setIsPlaying(true);
   };
 

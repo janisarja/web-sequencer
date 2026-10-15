@@ -1,32 +1,41 @@
 import { useRef, useState } from 'react';
-import type { Sound, PianoRollAction } from '../types';
+import type { Sound, PianoRollAction, Track } from '../types';
 
 type PianoRollProps = {
+  trackName: Track;
   track: Sound[];
   position: number;
   onChange: (action: PianoRollAction) => void;
 };
 
 const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const ROWS = Array.from({ length: 25 }, (_, index) => {
-  const note = 24 - index;
-  return `${NOTES[note % 12]}${3 + Math.floor(note / 12)}`;
-});
+const BASE_OCTAVES: Record<Track, number> = {
+  drums: 3,
+  bass: 0,
+  synth_low: 2,
+  synth_high: 4,
+};
 const COLUMNS = 32;
+const ROW_COUNT = 25;
 const ROW_HEIGHT = 18;
 const COLUMN_WIDTH = 24;
 const LABEL_WIDTH = 36;
-const HEIGHT = ROWS.length * ROW_HEIGHT;
+const HEIGHT = ROW_COUNT * ROW_HEIGHT;
 const WIDTH = LABEL_WIDTH + COLUMNS * COLUMN_WIDTH;
 
-const noteIndex = (note: string) => ROWS.indexOf(note);
 const isBlackKey = (note: string) => note.includes('#');
 
 const PianoRoll = ({
+  trackName,
   track,
   position,
   onChange,
 }: PianoRollProps) => {
+  const rows = Array.from({ length: ROW_COUNT }, (_, index) => {
+    const note = 24 - index;
+    return `${NOTES[note % 12]}${BASE_OCTAVES[trackName] + Math.floor(note / 12)}`;
+  });
+  const noteIndex = (note: string) => rows.indexOf(note);
   const [drag, setDrag] = useState<{ row: number; start: number; end: number }>();
   const [zoom, setZoom] = useState(1);
   const pan = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
@@ -56,13 +65,13 @@ const PianoRoll = ({
     const y = event.clientY - bounds.top;
     return {
       column: Math.max(0, Math.min(COLUMNS - 1, Math.floor((x - LABEL_WIDTH) / COLUMN_WIDTH))),
-      row: Math.max(0, Math.min(ROWS.length - 1, Math.floor(y / ROW_HEIGHT))),
+      row: Math.max(0, Math.min(rows.length - 1, Math.floor(y / ROW_HEIGHT))),
     };
   };
 
   const addNote = (row: number, start: number, end: number) => {
     const length = end - start + 1;
-    onChange({ type: 'add', sound: { id: crypto.randomUUID(), note: ROWS[row], duration: length, start } });
+    onChange({ type: 'add', sound: { id: crypto.randomUUID(), note: rows[row], duration: length, start } });
   };
 
   return (
@@ -133,7 +142,7 @@ const PianoRoll = ({
           }}
           onPointerCancel={() => setDrag(undefined)}
         >
-          {ROWS.map((note, row) => (
+          {rows.map((note, row) => (
             <g key={note} role="row">
               <rect
                 x={0}
