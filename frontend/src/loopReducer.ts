@@ -1,10 +1,19 @@
-import type { Loop, LoopAction } from './types';
+import type { Loop, LoopAction } from '@app/shared';
 
-const loopReducer = (state: Loop, action: LoopAction): Loop => {
+type ReplaceLoopAction = {
+  type: 'replace';
+  state: Loop;
+};
+
+const loopReducer = (state: Loop, action: LoopAction | ReplaceLoopAction): Loop => {
   switch (action.type) {
+    case 'replace':
+      return action.state;
     case 'add': {
       const { track, sound } = action;
-      console.log('LoopReducer state:', state, 'action:', action);
+      if (state[track].some((sound) => sound.id === action.sound.id)) {
+        return state;
+      }
       return {
         ...state,
         [track]: [...state[track], sound],

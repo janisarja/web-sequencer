@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react';
-import type { Sound, PianoRollAction, Track } from '../types';
+import type { Sound, Track } from '@app/shared';
+import type { PianoRollAction } from '../types';
 
 type PianoRollProps = {
   trackName: Track;
   track: Sound[];
   position: number;
+  editingEnabled: boolean;
   onChange: (action: PianoRollAction) => void;
 };
 
@@ -29,6 +31,7 @@ const PianoRoll = ({
   trackName,
   track,
   position,
+  editingEnabled,
   onChange,
 }: PianoRollProps) => {
   const rows = Array.from({ length: ROW_COUNT }, (_, index) => {
@@ -117,7 +120,7 @@ const PianoRoll = ({
           height={HEIGHT}
           preserveAspectRatio="none"
           onPointerDown={(event) => {
-            if (event.button === 1) return;
+            if (event.button === 1 || !editingEnabled) return;
             const { row, column } = cellAt(event);
             const existing = noteAt(row, column);
             if (existing) {
@@ -127,7 +130,7 @@ const PianoRoll = ({
             event.currentTarget.setPointerCapture(event.pointerId);
           }}
           onPointerMove={(event) => {
-            if (!drag) return;
+            if (!drag || !editingEnabled) return;
             const column = cellAt(event).column;
             setDrag({
               ...drag,
@@ -135,7 +138,7 @@ const PianoRoll = ({
             });
           }}
           onPointerUp={(event) => {
-            if (!drag) return;
+            if (!drag || !editingEnabled) return;
             addNote(drag.row, Math.min(drag.start, drag.end), Math.max(drag.start, drag.end));
             setDrag(undefined);
             event.currentTarget.releasePointerCapture(event.pointerId);
@@ -185,6 +188,7 @@ const PianoRoll = ({
                 fill="#22c55e"
                 onPointerDown={(event) => {
                   event.stopPropagation();
+                  if (!editingEnabled) return;
                   onChange({ type: 'remove', soundId: sound.id });
                 }}
               />
@@ -199,7 +203,7 @@ const PianoRoll = ({
             strokeWidth={1.5}
             pointerEvents="none"
           />
-          {drag && (
+          {editingEnabled && drag && (
             <rect
               x={LABEL_WIDTH + Math.min(drag.start, drag.end) * COLUMN_WIDTH + 1}
               y={drag.row * ROW_HEIGHT + 2}

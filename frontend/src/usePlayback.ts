@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Tone from 'tone';
 
-import type { Loop, Sound, Track } from './types';
+import type { Loop, Sound, Track } from '@app/shared';
 
 type Playback = {
   isPlaying: boolean;

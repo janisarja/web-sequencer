@@ -1,0 +1,11 @@
+{
+  "name": "@app/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    }
+  }
+}

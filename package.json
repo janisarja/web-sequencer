@@ -1,5 +1,11 @@
 {
+  "private": true,
   "type": "module",
+  "workspaces": [
+    "frontend",
+    "backend",
+    "packages/shared"
+  ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.10.0",
