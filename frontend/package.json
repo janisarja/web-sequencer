@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "node --import tsx --test src/*.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "typescript": "~6.0.2",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.20.6",
     "vite": "^8.3.0"
   }
 }
