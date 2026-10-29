@@ -4,6 +4,7 @@ import LoopReducer from './loopReducer';
 import usePlayback from './usePlayback';
 import PlayButton from './components/PlayButton';
 import PianoRoll from './components/PianoRoll';
+import { config } from './config';
 
 import type {
   ClientMessage,
@@ -30,7 +31,7 @@ const App = () => {
   const [isReady, setIsReady] = useState(false);
 
   const fetchState = useCallback(async () => {
-    const response = await fetch('http://localhost:8080/state');
+    const response = await fetch(config.stateUrl);
     if (!response.ok) {
       throw new Error(`State request failed with status ${response.status}`);
     }
@@ -80,7 +81,7 @@ const App = () => {
         await fetchState();
         if (disposed) return;
 
-        socket = new WebSocket('ws://localhost:8080');
+        socket = new WebSocket(config.websocketUrl);
         setSocket(socket);
       } catch (error: unknown) {
         console.error('Failed to load loop state:', error);

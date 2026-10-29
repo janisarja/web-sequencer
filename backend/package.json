@@ -4,17 +4,19 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "node --env-file=.env --import tsx --watch src/server.ts",
     "build": "tsc",
     "lint": "eslint .",
-    "start": "node dist/server.js",
+    "start": "node --env-file=.env dist/server.js",
     "test": "node --import tsx --test src/*.test.ts"
   },
   "dependencies": {
     "@app/shared": "*",
+    "better-sqlite3": "^13.0.3",
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.8.0",
     "@types/ws": "^8.18.1",
     "tsx": "^4.20.6",

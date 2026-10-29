@@ -1,5 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { once } from 'node:events';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import WebSocket from 'ws';
 
@@ -15,7 +18,12 @@ const nextMessage = (socket: WebSocket) => once(socket, 'message')
   .then(([data]) => JSON.parse(data.toString()));
 
 test('serves state and synchronizes valid, rejected, and idempotent actions', async () => {
-  const { httpServer: server, webSocketServer } = createAppServer();
+  const directory = await mkdtemp(join(tmpdir(), 'open-jam-space-'));
+  const databasePath = join(directory, 'loop.db');
+  const { httpServer: server, close } = createAppServer({
+    databasePath,
+    corsOrigin: '*',
+  });
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address();
   assert.ok(address && typeof address !== 'string');
@@ -73,13 +81,46 @@ test('serves state and synchronizes valid, rejected, and idempotent actions', as
 
   } finally {
     socket?.terminate();
-    await Promise.all([
-      new Promise<void>((resolve, reject) => {
-        server.close((error?: Error) => error ? reject(error) : resolve());
-      }),
-      new Promise<void>((resolve, reject) => {
-        webSocketServer.close((error?: Error) => error ? reject(error) : resolve());
-      }),
-    ]);
+    await close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('restores the loop and revision from SQLite after restart', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'open-jam-space-'));
+  const databasePath = join(directory, 'loop.db');
+  const first = createAppServer({
+    databasePath,
+    corsOrigin: '*',
+  });
+  first.httpServer.listen(0);
+  await once(first.httpServer, 'listening');
+  const address = first.httpServer.address();
+  assert.ok(address && typeof address !== 'string');
+
+  const socket = new WebSocket(`ws://127.0.0.1:${address.port}`);
+  const connectedMessage = nextMessage(socket);
+  await once(socket, 'open');
+  await connectedMessage;
+  socket.send(JSON.stringify({ action: addSound }));
+  await nextMessage(socket);
+  socket.terminate();
+  await first.close();
+
+  const second = createAppServer({
+    databasePath,
+    corsOrigin: '*',
+  });
+  second.httpServer.listen(0);
+  await once(second.httpServer, 'listening');
+  try {
+    const response = await fetch(`http://127.0.0.1:${(second.httpServer.address() as { port: number }).port}/state`);
+    assert.deepEqual(await response.json(), {
+      state: { drums: [addSound.sound], bass: [], synth_low: [], synth_high: [] },
+      revision: 1,
+    });
+  } finally {
+    await second.close();
+    await rm(directory, { recursive: true, force: true });
   }
 });

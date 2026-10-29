@@ -1,5 +1,8 @@
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import Database from 'better-sqlite3';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { ClientMessage, LoopState, ServerMessage } from '@app/shared';
 
@@ -51,13 +54,49 @@ const isClientMessage = (value: unknown): value is ClientMessage => (
   isLoopAction(value.action)
 );
 
-export const createAppServer = () => {
-  const loop = createInitialLoop();
+type AppServer = {
+  httpServer: ReturnType<typeof createServer>;
+  webSocketServer: WebSocketServer;
+  close: () => Promise<void>;
+};
+
+type AppServerOptions = {
+  databasePath: string;
+  corsOrigin: string;
+};
+
+export const createAppServer = ({ databasePath, corsOrigin }: AppServerOptions): AppServer => {
+  mkdirSync(dirname(databasePath), { recursive: true });
+  const database = new Database(databasePath);
+  database.pragma('journal_mode = WAL');
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS loop_state (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      revision INTEGER NOT NULL,
+      state TEXT NOT NULL
+    )
+  `);
+
+  const storedState = database
+    .prepare('SELECT revision, state FROM loop_state WHERE id = 1')
+    .get() as { revision: number; state: string } | undefined;
+  const loop: LoopState = storedState
+    ? { revision: storedState.revision, state: JSON.parse(storedState.state) as LoopState['state'] }
+    : createInitialLoop();
+  const saveLoop = database.prepare(`
+    INSERT INTO loop_state (id, revision, state)
+    VALUES (1, @revision, @state)
+    ON CONFLICT(id) DO UPDATE SET revision = @revision, state = @state
+  `);
+  if (!storedState) {
+    saveLoop.run({ revision: loop.revision, state: JSON.stringify(loop.state) });
+  }
+
   const httpServer = createServer((request, response) => {
     if (request.method === 'GET' && request.url === '/state') {
       response.writeHead(200, {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': corsOrigin,
       });
       response.end(JSON.stringify(loop));
       return;
@@ -146,6 +185,7 @@ export const createAppServer = () => {
       }
 
       loop.revision += 1;
+      saveLoop.run({ revision: loop.revision, state: JSON.stringify(loop.state) });
       console.log('Accepted action:', action, 'New revision:', loop.revision);
       broadcast({
         type: 'update',
@@ -155,12 +195,47 @@ export const createAppServer = () => {
     });
   });
 
-  return { httpServer, webSocketServer };
+  let closePromise: Promise<void> | undefined;
+  const close = (): Promise<void> => {
+    closePromise ??= (async () => {
+      try {
+        for (const client of webSocketServer.clients) {
+          client.close(1001, 'Server shutting down');
+        }
+
+        await new Promise<void>((resolve, reject) => {
+          webSocketServer.close((error) => error ? reject(error) : resolve());
+        });
+        await new Promise<void>((resolve, reject) => {
+          httpServer.close((error) => error ? reject(error) : resolve());
+        });
+      } finally {
+        database.close();
+      }
+    })();
+    return closePromise;
+  };
+
+  return { httpServer, webSocketServer, close };
 };
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const port = Number(process.env.PORT ?? 8080);
-  const { httpServer } = createAppServer();
+  const requiredEnvironment = (name: string): string => {
+    const value = process.env[name];
+    if (!value) {
+      throw new Error(`Missing required backend environment variable: ${name}`);
+    }
+    return value;
+  };
+  const portValue = requiredEnvironment('PORT');
+  const port = Number(portValue);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`PORT must be an integer between 1 and 65535, got: ${portValue}`);
+  }
+  const { httpServer, close } = createAppServer({
+    databasePath: requiredEnvironment('DATABASE_PATH'),
+    corsOrigin: requiredEnvironment('CORS_ORIGIN'),
+  });
   httpServer.listen(port, () => {
     console.log(`HTTP and WebSocket server listening on http://localhost:${port}`);
   });
@@ -168,4 +243,20 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   httpServer.on('error', (error) => {
     console.error('HTTP and WebSocket server error:', error);
   });
+
+  let shuttingDown = false;
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`Received ${signal}, shutting down gracefully`);
+    void close()
+      .then(() => process.exit(0))
+      .catch((error: unknown) => {
+        console.error('Graceful shutdown failed:', error);
+        process.exit(1);
+      });
+  };
+
+  process.once('SIGINT', () => shutdown('SIGINT'));
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
 }
